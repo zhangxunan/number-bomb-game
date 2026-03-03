@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 数字炸弹</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .range-display {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        input[type="number"] {
+            flex: 1;
+            padding: 15px 20px;
+            font-size: 1.2em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="number"]:focus {
+            border-color: #667eea;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .message.hint {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .stats {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        
+        .stats h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: #666;
+        }
+        
+        .stat-value {
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .new-game-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            margin-top: 15px;
+            width: 100%;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .emoji {
+            font-size: 1.5em;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎯 数字炸弹</h1>
+        <p class="subtitle">猜中隐藏的数字，避免踩到炸弹！</p>
+        
+        <div class="range-display" id="rangeDisplay">
+            范围：1 - 100
+        </div>
+        
+        <div class="message hint" id="message">
+            <span class="emoji">🎮</span> 输入你的猜测，开始游戏！
+        </div>
+        
+        <div class="input-area" id="inputArea">
+            <input type="number" id="guessInput" placeholder="输入 1-100 的数字" min="1" max="100">
+            <button onclick="makeGuess()">猜！</button>
+        </div>
+        
+        <button class="new-game-btn hidden" id="newGameBtn" onclick="newGame()">
+            🔄 再来一局
+        </button>
+        
+        <div class="stats" id="stats">
+            <h3>📊 游戏统计</h3>
+            <div class="stat-item">
+                <span class="stat-label">已猜次数</span>
+                <span class="stat-value" id="guessCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">最佳记录</span>
+                <span class="stat-value" id="bestRecord">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">平均次数</span>
+                <span class="stat-value" id="avgGuesses">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let bombNumber;
+        let minRange = 1;
+        let maxRange = 100;
+        let guessCount = 0;
+        let gameHistory = [];
+        let isGameOver = false;
+
+        // 初始化游戏
+        function initGame() {
+            bombNumber = Math.floor(Math.random() * 100) + 1;
+            minRange = 1;
+            maxRange = 100;
+            guessCount = 0;
+            isGameOver = false;
+            
+            updateRangeDisplay();
+            updateStats();
+            showMessage('hint", '🎮 输入你的猜测，开始游戏！');
+            document.getElementById('guessInput').value = '';
+            document.getElementById('guessInput').disabled = false;
+            document.getElementById('guessInput').focus();
+            document.getElementById('inputArea').classList.remove('hidden');
+            document.getElementById('newGameBtn').classList.add('hidden');
+        }
+
+        // 更新范围显示
+        function updateRangeDisplay() {
+            document.getElementById('rangeDisplay').textContent = `范围：${minRange} - ${maxRange}`;
+        }
+
+        // 显示消息
+        function showMessage(type, text) {
+            const messageEl = document.getElementById('message');
+            messageEl.className = `message ${type}`;
+            messageEl.innerHTML = text;
+        }
+
+        // 更新统计
+        function updateStats() {
+            document.getElementById('guessCount').textContent = guessCount;
+            
+            if (gameHistory.length > 0) {
+                const best = Math.min(...gameHistory);
+                const avg = (gameHistory.reduce((a, b) => a + b, 0) / gameHistory.length).toFixed(1);
+                document.getElementById('bestRecord').textContent = best;
+                document.getElementById('avgGuesses').textContent = avg;
+            }
+        }
+
+        // 玩家猜测
+        function makeGuess() {
+            if (isGameOver) return;
+            
+            const input = document.getElementById('guessInput');
+            const guess = parseInt(input.value);
+            
+            if (isNaN(guess) || guess < 1 || guess > 100) {
+                showMessage('error', '❌ 请输入 1-100 之间的有效数字！');
+                return;
+            }
+            
+            if (guess < minRange || guess > maxRange) {
+                showMessage('error', `❌ 数字必须在 ${minRange}-${maxRange} 之间！`);
+                return;
+            }
+            
+            guessCount++;
+            
+            if (guess === bombNumber) {
+                // 猜中了！
+                isGameOver = true;
+                gameHistory.push(guessCount);
+                showMessage('success', `🎉 恭喜！炸弹数字就是 ${bombNumber}！你用了 ${guessCount} 次猜中！`);
+                input.disabled = true;
+                document.getElementById('inputArea').classList.add('hidden');
+                document.getElementById('newGameBtn').classList.remove('hidden');
+                updateStats();
+            } else if (guess < bombNumber) {
+                // 猜小了
+                minRange = guess + 1;
+                updateRangeDisplay();
+                showMessage('hint', `📈 太小了！范围缩小到 ${minRange} - ${maxRange}`);
+                input.value = '';
+                input.focus();
+            } else {
+                // 猜大了
+                maxRange = guess - 1;
+                updateRangeDisplay();
+                showMessage('hint', `📉 太大了！范围缩小到 ${minRange} - ${maxRange}`);
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        // 新游戏
+        function newGame() {
+            initGame();
+        }
+
+        // 回车键提交
+        document.getElementById('guessInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                makeGuess();
+            }
+        });
+
+        // 游戏开始
+        initGame();
+    </script>
+</body>
+</html>

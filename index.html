@@ -29,6 +29,8 @@
             width: 100%;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             text-align: center;
+            position: relative;
+            overflow: hidden;
         }
         
         h1 {
@@ -51,6 +53,16 @@
             margin-bottom: 30px;
             font-size: 1.3em;
             font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .range-display.pulse {
+            animation: pulse 0.5s ease-in-out;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
         
         .input-area {
@@ -103,6 +115,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s;
         }
         
         .message.hint {
@@ -118,6 +131,12 @@
         .message.error {
             background: #f8d7da;
             color: #721c24;
+        }
+        
+        .message.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffc107;
         }
         
         .stats {
@@ -165,6 +184,100 @@
         .emoji {
             font-size: 1.5em;
             margin-right: 5px;
+        }
+        
+        /* 炸弹特效 */
+        .bomb-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .bomb-content {
+            text-align: center;
+            animation: zoomIn 0.5s ease-out;
+        }
+        
+        @keyframes zoomIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        
+        .bomb-emoji {
+            font-size: 150px;
+            animation: shake 0.5s ease-in-out infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: rotate(-10deg); }
+            50% { transform: rotate(10deg); }
+        }
+        
+        .bomb-text {
+            color: #ff4757;
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+        }
+        
+        .bomb-number {
+            color: #ffa502;
+            font-size: 4em;
+            font-weight: bold;
+            margin: 10px 0;
+            text-shadow: 0 0 30px rgba(255, 165, 2, 0.8);
+        }
+        
+        .bomb-message {
+            color: white;
+            font-size: 1.5em;
+            margin-bottom: 30px;
+        }
+        
+        .bomb-confirm-btn {
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+            padding: 20px 50px;
+            font-size: 1.3em;
+            animation: pulse-btn 1s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-btn {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        /* 爆炸粒子效果 */
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        .feedback-icon {
+            font-size: 2em;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        .range-change {
+            color: #ff6b81;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -225,7 +338,7 @@
             
             updateRangeDisplay();
             updateStats();
-            showMessage('hint", '🎮 输入你的猜测，开始游戏！');
+            showMessage('hint', '🎮 输入你的猜测，开始游戏！');
             document.getElementById('guessInput').value = '';
             document.getElementById('guessInput').disabled = false;
             document.getElementById('guessInput').focus();
@@ -235,7 +348,10 @@
 
         // 更新范围显示
         function updateRangeDisplay() {
-            document.getElementById('rangeDisplay').textContent = `范围：${minRange} - ${maxRange}`;
+            const rangeEl = document.getElementById('rangeDisplay');
+            rangeEl.textContent = `范围：${minRange} - ${maxRange}`;
+            rangeEl.classList.add('pulse');
+            setTimeout(() => rangeEl.classList.remove('pulse'), 500);
         }
 
         // 显示消息
@@ -277,29 +393,103 @@
             guessCount++;
             
             if (guess === bombNumber) {
-                // 猜中了！
-                isGameOver = true;
-                gameHistory.push(guessCount);
-                showMessage('success', `🎉 恭喜！炸弹数字就是 ${bombNumber}！你用了 ${guessCount} 次猜中！`);
-                input.disabled = true;
-                document.getElementById('inputArea').classList.add('hidden');
-                document.getElementById('newGameBtn').classList.remove('hidden');
-                updateStats();
+                // 猜中了！显示炸弹特效
+                showBombEffect();
             } else if (guess < bombNumber) {
                 // 猜小了
+                const oldMin = minRange;
                 minRange = guess + 1;
                 updateRangeDisplay();
-                showMessage('hint', `📈 太小了！范围缩小到 ${minRange} - ${maxRange}`);
+                showMessage('warning', `
+                    <span class="feedback-icon">📈</span> 
+                    <strong>${guess}</strong> 太小了！
+                    <br>
+                    <span class="range-change">范围缩小到 ${minRange} - ${maxRange}</span>
+                `);
                 input.value = '';
                 input.focus();
             } else {
                 // 猜大了
+                const oldMax = maxRange;
                 maxRange = guess - 1;
                 updateRangeDisplay();
-                showMessage('hint', `📉 太大了！范围缩小到 ${minRange} - ${maxRange}`);
+                showMessage('warning', `
+                    <span class="feedback-icon">📉</span> 
+                    <strong>${guess}</strong> 太大了！
+                    <br>
+                    <span class="range-change">范围缩小到 ${minRange} - ${maxRange}</span>
+                `);
                 input.value = '';
                 input.focus();
             }
+        }
+
+        // 显示炸弹特效
+        function showBombEffect() {
+            isGameOver = true;
+            gameHistory.push(guessCount);
+            updateStats();
+            
+            // 创建炸弹遮罩层
+            const overlay = document.createElement('div');
+            overlay.className = 'bomb-overlay';
+            overlay.innerHTML = `
+                <div class="bomb-content">
+                    <div class="bomb-emoji">💣</div>
+                    <div class="bomb-text">BOOM!</div>
+                    <div class="bomb-number">${bombNumber}</div>
+                    <div class="bomb-message">你用了 ${guessCount} 次猜中炸弹！</div>
+                    <button class="bomb-confirm-btn" onclick="closeBombEffect()">💥 确认</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            
+            // 创建爆炸粒子效果
+            createExplosion();
+        }
+
+        // 创建爆炸粒子
+        function createExplosion() {
+            const colors = ['#ff4757', '#ffa502', '#ff6b81', '#ffeaa7', '#fd79a8'];
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    particle.style.left = centerX + 'px';
+                    particle.style.top = centerY + 'px';
+                    document.body.appendChild(particle);
+                    
+                    const angle = Math.random() * Math.PI * 2;
+                    const velocity = 100 + Math.random() * 200;
+                    const tx = Math.cos(angle) * velocity;
+                    const ty = Math.sin(angle) * velocity;
+                    
+                    particle.animate([
+                        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+                        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+                    ], {
+                        duration: 1000 + Math.random() * 500,
+                        easing: 'cubic-bezier(0, .9, .57, 1)'
+                    }).onfinish = () => particle.remove();
+                }, i * 20);
+            }
+        }
+
+        // 关闭炸弹效果
+        function closeBombEffect() {
+            const overlay = document.querySelector('.bomb-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+            
+            // 显示再来一局按钮
+            document.getElementById('inputArea').classList.add('hidden');
+            document.getElementById('newGameBtn').classList.remove('hidden');
+            showMessage('success', `🎉 恭喜！炸弹数字就是 ${bombNumber}！你用了 ${guessCount} 次猜中！`);
         }
 
         // 新游戏
